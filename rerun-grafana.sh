@@ -131,7 +131,8 @@ receivers:
       - routing_key: "7150b048dcee4c09d092ced788810515"
         severity: "critical"
 EOF
-
+# Main Prometheus Config (EC2 SD)
+sudo tee /etc/prometheus/prometheus.yml > /dev/null <<'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
