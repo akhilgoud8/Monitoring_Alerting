@@ -128,11 +128,13 @@ route:
 receivers:
   - name: pagerduty
     pagerduty_configs:
-      - routing_key: "7150b048dcee4c09d092ced788810515"
+      - routing_key: "YOUR_PAGERDUTY_ROUTING_KEY"
         severity: "critical"
 EOF
-# Main Prometheus Config (EC2 SD)
-sudo tee /etc/prometheus/prometheus.yml > /dev/null <<'EOF'
+
+
+# Prometheus Config
+sudo tee /etc/prometheus/prometheus.yml >/dev/null <<'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -152,7 +154,8 @@ rule_files:
 scrape_configs:
 
   # --------------------------------------------------
-  # 1. Node Exporter on the monitoring EC2 itself
+  # 1. Node Exporter on the local EC2 instance
+  # AWS Name tag = grafana
   # --------------------------------------------------
   - job_name: "node-exporter-local"
 
@@ -164,7 +167,8 @@ scrape_configs:
 
 
   # --------------------------------------------------
-  # 2. Node Exporter on EC2 instances discovered by AWS
+  # 2. Node Exporter discovered through AWS EC2 SD
+  # AWS Name tag = node-server
   # --------------------------------------------------
   - job_name: "ec2-node-exporters"
 
@@ -179,18 +183,18 @@ scrape_configs:
 
     relabel_configs:
 
-      # Use EC2 private IP + Node Exporter port
+      # EC2 private IP -> Node Exporter address
       - source_labels:
           - __meta_ec2_private_ip
         target_label: __address__
         replacement: "$1:9100"
 
-      # Add EC2 Name tag as a friendly label
+      # AWS Name tag -> friendly server label
       - source_labels:
           - __meta_ec2_tag_Name
         target_label: server
 
-      # Add EC2 instance ID
+      # AWS EC2 instance ID -> label
       - source_labels:
           - __meta_ec2_instance_id
         target_label: ec2_instance_id
