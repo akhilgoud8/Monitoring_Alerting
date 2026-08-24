@@ -11,6 +11,8 @@ is_installed() {
 }
 
 # ============ 1. System Prep ============
+sudo dpkg --configure -a
+sudo apt-get -f install
 sudo apt update && sudo apt upgrade -y
 sudo useradd --no-create-home --shell /bin/false prometheus || true
 sudo useradd --no-create-home --shell /bin/false node_exporter || true
@@ -116,6 +118,9 @@ EOF
 sudo tee /etc/alertmanager/alertmanager.yml >/dev/null <<'EOF'
 route:
   receiver: pagerduty
+  group_by:
+    - alertname
+    - instance
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
@@ -123,7 +128,7 @@ route:
 receivers:
   - name: pagerduty
     pagerduty_configs:
-      - routing_key: "7150b048dcee4c09d092ced788810515"
+      - routing_key: "3629451952984f0ec07fad6fd572e0fa"
         severity: "critical"
 EOF
 
