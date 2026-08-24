@@ -132,48 +132,67 @@ receivers:
         severity: "critical"
 EOF
 
-# Main Prometheus Config (EC2 SD)
-sudo tee /etc/prometheus/prometheus.yml >/dev/null <<'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Prometheus sends firing alerts to Alertmanager.
+# Alertmanager is running on the same EC2 instance.
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ["localhost:9093"]
-    - ec2_sd_configs:
-        - region: us-east-1
-          port: 9093
-          filters:
-            - name: "tag:Name"
-              values: ["node-server"]
-      relabel_configs:
-        - source_labels: [__meta_ec2_private_ip]
-          regex: (.*)
-          target_label: __address__
-          replacement: "$1:9093"
+        - targets:
+            - "localhost:9093"
 
+# Prometheus alerting rules
 rule_files:
-  - "alert.rules.yml"
+  - "/etc/prometheus/alert.rules.yml"
 
 scrape_configs:
-  - job_name: "prometheus"
-    static_configs:
-      - targets: ["localhost:9100"]
 
+  # --------------------------------------------------
+  # 1. Node Exporter on the monitoring EC2 itself
+  # --------------------------------------------------
+  - job_name: "node-exporter-local"
+
+    static_configs:
+      - targets:
+          - "localhost:9100"
+        labels:
+          server: "grafana"
+
+
+  # --------------------------------------------------
+  # 2. Node Exporter on EC2 instances discovered by AWS
+  # --------------------------------------------------
   - job_name: "ec2-node-exporters"
+
     ec2_sd_configs:
       - region: us-east-1
         port: 9100
+
         filters:
           - name: "tag:Name"
-            values: ["node-server"]
+            values:
+              - "node-server"
+
     relabel_configs:
-      - source_labels: [__meta_ec2_private_ip]
-        regex: (.*)
+
+      # Use EC2 private IP + Node Exporter port
+      - source_labels:
+          - __meta_ec2_private_ip
         target_label: __address__
         replacement: "$1:9100"
+
+      # Add EC2 Name tag as a friendly label
+      - source_labels:
+          - __meta_ec2_tag_Name
+        target_label: server
+
+      # Add EC2 instance ID
+      - source_labels:
+          - __meta_ec2_instance_id
+        target_label: ec2_instance_id
 EOF
 
 # Set Permissions
